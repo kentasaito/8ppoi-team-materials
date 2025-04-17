@@ -56,7 +56,7 @@
     DEBIAN_FRONTEND=noninteractive apt-get install postfix -y && cp -a /etc/postfix /etc/postfix.orig
     DEBIAN_FRONTEND=noninteractive apt-get install dovecot-core dovecot-imapd -y && cp -a /etc/dovecot /etc/dovecot.orig
     DEBIAN_FRONTEND=noninteractive apt-get install opendkim -y && cp -a /etc/opendkim.conf /etc/opendkim.conf.orig
-    (cd / && patch -p0 < ~/メール環境.patch)
+    (cd / && patch -p0 < ./構築資料/メール環境.patch)
     systemctl restart dovecot
     systemctl restart postfix
     systemctl restart opendkim
@@ -82,13 +82,13 @@
     rootに戻る
 
   8ppoiサイトのデーモン化
-    cp ./8ppoi-site.service /etc/systemd/system/8ppoi-site.service
+    cp ./構築資料/8ppoi-site.service /etc/systemd/system/8ppoi-site.service
     systemctl enable 8ppoi-site.service
     systemctl start 8ppoi-site.service
     
   リバースプロキシ
     DEBIAN_FRONTEND=noninteractive apt-get install nginx -y
-    cp ./8ppoi-siteのnginx設定.txt /etc/nginx/sites-available/8ppoi-site
+    cp ./構築資料/8ppoi-site /etc/nginx/sites-available/8ppoi-site
     ln -s /etc/nginx/sites-available/8ppoi-site /etc/nginx/sites-enabled/
     nginx -t
     systemctl restart nginx
