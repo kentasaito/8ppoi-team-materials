@@ -1,0 +1,94 @@
+初期設定
+  Dropletの作成
+    Singapore・Datacenter 1・SGP1
+    Ubuntu 24.04 (LTS) x64
+    Basic
+    Regular
+      $4/mo
+
+    SSH Key
+      Kenta Saito 2025
+
+    options
+      Add improved metrics monitoring and alerting (free)
+
+    Hostname
+      8ppoi.com
+
+  パッケージのアップデート
+    DEBIAN_FRONTEND=noninteractive apt-get update && apt-get dist-upgrade -y && reboot
+
+  DNSの設定
+    TXT _dmarc.8ppoi.com 'v=DMARC1; p=none;' 60
+    TXT 8ppoi.com 'v=spf1 +a:8ppoi.com -all' 60
+    TXT default._domainkey.8ppoi.com 'v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvcni+GLiVNx6XixyD9SSl8xHVRri/47ORz45BkkQhGsQG/573GrUJJmavC0RKl+QZda466NjmCKTSgOptvxnV2GnAk65S5znk4By0EAjoM5aQC9/rzjRfmFtYLufAv4QncYeKxqzfiQo4TzPWabvYUMax7GgJcbq8nbWucvI6mvaaYWM/h7l1uy4mwiOd1j8+BSUDwCEZRWQmykeFnyZjDsS/N8OHmyklnML/Z5oblM67G7THmJhRxazgOxhERDDTy6boHR8kbc5sr+f5m+nv4zO1d+ELd3k4vGTi0FoyJg1UzEV8zUt4eRi2/iI8EKzgFk6loxpa+H9IA6LEX4GGQIDAQAB' 60
+    A (8ppoi.com DropletのIPアドレス) 60
+    NS 8ppoi.com ns1.digitalocean.com. 1800
+    NS 8ppoi.com ns2.digitalocean.com. 1800
+    NS 8ppoi.com ns3.digitalocean.com. 1800
+
+  Let's encrypt
+    letsencryptディレクトリを/etcにアップロード
+    なければサーバ上で以下のコマンドを実行し作る。
+    DEBIAN_FRONTEND=noninteractive apt-get install certbot python3-certbot-dns-digitalocean -y
+    echo "dns_digitalocean_token = (dns_digitalocean_token.txtの内容)" > /etc/letsencrypt/digitalocean.ini
+    chmod 600 /etc/letsencrypt/digitalocean.ini
+    certbot -d 8ppoi.com --dns-digitalocean --dns-digitalocean-credentials ~/digitalocean.ini certonly
+
+  DKIMの公開鍵
+    dkimkeysディレクトリを/etcにアップロード
+    なければサーバ上で以下のコマンドを実行し作る。
+    ただしTXTレコードdefault._domainkey.8ppoi.comはdefault.txtの内容に変える。
+    opendkim-genkey -D /etc/dkimkeys -d 8ppoi.com
+
+  8ppoiユーザの作成
+    adduser --allow-bad-name 8ppoi
+    mkdir /home/8ppoi/.ssh
+    chmod 700 /home/8ppoi/.ssh
+    cp -a ~/.ssh/authorized_keys /home/8ppoi/.ssh/authorized_keys
+    chown -R 8ppoi:8ppoi /home/8ppoi/.ssh
+
+  メール環境
+    mkdir -p /home/8ppoi/Maildir/{cur,new,tmp}
+    mkdir -p /home/8ppoi/Maildir/.Sent/{cur,new,tmp}
+    chmod -R 700 /home/8ppoi/Maildir
+    chown -R 8ppoi:8ppoi /home/8ppoi/Maildir
+    DEBIAN_FRONTEND=noninteractive apt-get install postfix -y && cp -a /etc/postfix /etc/postfix.orig
+    DEBIAN_FRONTEND=noninteractive apt-get install dovecot-core dovecot-imapd -y && cp -a /etc/dovecot /etc/dovecot.orig
+    DEBIAN_FRONTEND=noninteractive apt-get install opendkim -y && cp -a /etc/opendkim.conf /etc/opendkim.conf.orig
+    (cd / && patch -p0 < ~/メール環境.patch)
+    systemctl restart dovecot
+    systemctl restart postfix
+    systemctl restart opendkim
+
+
+  8ppoiユーザが依存するパッケージのインストール
+    DEBIAN_FRONTEND=noninteractive apt-get install sqlite3 -y
+    DEBIAN_FRONTEND=noninteractive apt-get install unzip -y
+
+  以下は8ppoiユーザで
+    Denoのインストール
+      curl -fsSL https://deno.land/install.sh | sh
+
+    8ppoiサイト設置
+      git config --global init.defaultBranch main
+      git config --global user.name "8ppoi oficial"
+      git config --global user.email "8ppoi@8ppoi.com"
+      git init ~/8ppoi-site
+      git -C ~/8ppoi-site config --local receive.denyCurrentBranch updateInstead
+
+    ローカルから8ppoi-siteをpush
+
+    rootに戻る
+
+  8ppoiサイトのデーモン化
+    cp ./8ppoi-site.service /etc/systemd/system/8ppoi-site.service
+    systemctl enable 8ppoi-site.service
+    systemctl start 8ppoi-site.service
+    
+  リバースプロキシ
+    DEBIAN_FRONTEND=noninteractive apt-get install nginx -y
+    cp ./8ppoi-siteのnginx設定.txt /etc/nginx/sites-available/8ppoi-site
+    ln -s /etc/nginx/sites-available/8ppoi-site /etc/nginx/sites-enabled/
+    nginx -t
+    systemctl restart nginx

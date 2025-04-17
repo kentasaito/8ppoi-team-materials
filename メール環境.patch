@@ -1,0 +1,198 @@
+diff -uprN /etc/postfix.orig/main.cf /etc/postfix/main.cf
+--- /etc/postfix.orig/main.cf	2025-04-16 03:02:31.607142863 +0000
++++ /etc/postfix/main.cf	2025-04-16 07:42:27.844227919 +0000
+@@ -24,14 +24,17 @@ compatibility_level = 3.6
+ 
+ 
+ # TLS parameters
+-smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+-smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
++smtpd_tls_cert_file = /etc/letsencrypt/live/8ppoi.com/fullchain.pem
++smtpd_tls_key_file = /etc/letsencrypt/live/8ppoi.com/privkey.pem
+ smtpd_tls_security_level=may
+ 
+ smtp_tls_CApath=/etc/ssl/certs
+ smtp_tls_security_level=may
+ smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+ 
++smtpd_tls_auth_only = yes
++smtpd_tls_loglevel = 1
++
+ 
+ smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
+ myhostname = 8ppoi.com
+@@ -45,3 +48,14 @@ mailbox_size_limit = 0
+ recipient_delimiter = +
+ inet_interfaces = all
+ inet_protocols = all
++
++home_mailbox = Maildir/
++
++smtpd_sasl_auth_enable = yes
++smtpd_sasl_type = dovecot
++smtpd_sasl_path = private/auth
++broken_sasl_auth_clients = yes
++
++smtpd_milters = inet:127.0.0.1:8891
++non_smtpd_milters = $smtpd_milters
++milter_default_action = accept
+diff -uprN /etc/postfix.orig/master.cf /etc/postfix/master.cf
+--- /etc/postfix.orig/master.cf	2025-04-16 03:02:27.712372638 +0000
++++ /etc/postfix/master.cf	2025-04-16 07:15:38.645279535 +0000
+@@ -16,10 +16,10 @@ smtp      inet  n       -       y
+ #tlsproxy  unix  -       -       y       -       0       tlsproxy
+ # Choose one: enable submission for loopback clients only, or for any client.
+ #127.0.0.1:submission inet n -   y       -       -       smtpd
+-#submission inet n       -       y       -       -       smtpd
++submission inet n       -       y       -       -       smtpd
+ #  -o syslog_name=postfix/submission
+-#  -o smtpd_tls_security_level=encrypt
+-#  -o smtpd_sasl_auth_enable=yes
++  -o smtpd_tls_security_level=encrypt
++  -o smtpd_sasl_auth_enable=yes
+ #  -o smtpd_tls_auth_only=yes
+ #  -o local_header_rewrite_clients=static:all
+ #  -o smtpd_reject_unlisted_recipient=no
+@@ -31,7 +31,7 @@ smtp      inet  n       -       y
+ #  -o smtpd_helo_restrictions=
+ #  -o smtpd_sender_restrictions=
+ #  -o smtpd_relay_restrictions=
+-#  -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject
++  -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject
+ #  -o milter_macro_daemon_name=ORIGINATING
+ # Choose one: enable submissions for loopback clients only, or for any client.
+ #127.0.0.1:submissions inet n  -       y       -       -       smtpd
+diff -uprN /etc/dovecot.orig/conf.d/10-auth.conf /etc/dovecot/conf.d/10-auth.conf
+--- /etc/dovecot.orig/conf.d/10-auth.conf	2023-09-14 13:17:46.000000000 +0000
++++ /etc/dovecot/conf.d/10-auth.conf	2025-04-16 03:14:55.317804135 +0000
+@@ -7,7 +7,7 @@
+ # matches the local IP (ie. you're connecting from the same computer), the
+ # connection is considered secure and plaintext authentication is allowed.
+ # See also ssl=required setting.
+-#disable_plaintext_auth = yes
++disable_plaintext_auth = no
+ 
+ # Authentication cache size (e.g. 10M). 0 means it's disabled. Note that
+ # bsdauth and PAM require cache_key to be set for caching to be used.
+@@ -97,7 +97,7 @@
+ #   plain login digest-md5 cram-md5 ntlm rpa apop anonymous gssapi otp
+ #   gss-spnego
+ # NOTE: See also disable_plaintext_auth setting.
+-auth_mechanisms = plain
++auth_mechanisms = plain login
+ 
+ ##
+ ## Password and user databases
+diff -uprN /etc/dovecot.orig/conf.d/10-mail.conf /etc/dovecot/conf.d/10-mail.conf
+--- /etc/dovecot.orig/conf.d/10-mail.conf	2024-08-26 15:52:27.000000000 +0000
++++ /etc/dovecot/conf.d/10-mail.conf	2025-04-16 03:16:22.975230155 +0000
+@@ -27,7 +27,7 @@
+ #
+ # <doc/wiki/MailLocation.txt>
+ #
+-mail_location = mbox:~/mail:INBOX=/var/mail/%u
++mail_location = maildir:~/Maildir
+ 
+ # If you need to set multiple mailbox locations or want to change default
+ # namespace settings, you can do it by defining namespace sections.
+diff -uprN /etc/dovecot.orig/conf.d/10-master.conf /etc/dovecot/conf.d/10-master.conf
+--- /etc/dovecot.orig/conf.d/10-master.conf	2023-09-14 13:17:46.000000000 +0000
++++ /etc/dovecot/conf.d/10-master.conf	2025-04-16 03:44:43.195089290 +0000
+@@ -16,11 +16,11 @@
+ 
+ service imap-login {
+   inet_listener imap {
+-    #port = 143
++    port = 0
+   }
+   inet_listener imaps {
+-    #port = 993
+-    #ssl = yes
++    port = 993
++    ssl = yes
+   }
+ 
+   # Number of connections to handle before starting a new process. Typically
+@@ -107,9 +107,11 @@ service auth {
+   }
+ 
+   # Postfix smtp-auth
+-  #unix_listener /var/spool/postfix/private/auth {
+-  #  mode = 0666
+-  #}
++  unix_listener /var/spool/postfix/private/auth {
++    mode = 0666
++    user = postfix
++    group = postfix
++  }
+ 
+   # Auth process is run as this user.
+   #user = $default_internal_user
+diff -uprN /etc/dovecot.orig/conf.d/10-ssl.conf /etc/dovecot/conf.d/10-ssl.conf
+--- /etc/dovecot.orig/conf.d/10-ssl.conf	2024-08-26 15:52:27.000000000 +0000
++++ /etc/dovecot/conf.d/10-ssl.conf	2025-04-16 03:43:06.681417911 +0000
+@@ -3,14 +3,14 @@
+ ##
+ 
+ # SSL/TLS support: yes, no, required. <doc/wiki/SSL.txt>
+-ssl = yes
++ssl = required
+ 
+ # PEM encoded X.509 SSL/TLS certificate and private key. They're opened before
+ # dropping root privileges, so keep the key file unreadable by anyone but
+ # root. Included doc/mkcert.sh can be used to easily generate self-signed
+ # certificate, just make sure to update the domains in dovecot-openssl.cnf
+-ssl_cert = </etc/dovecot/private/dovecot.pem
+-ssl_key = </etc/dovecot/private/dovecot.key
++ssl_cert = </etc/letsencrypt/live/8ppoi.com/fullchain.pem
++ssl_key = </etc/letsencrypt/live/8ppoi.com/privkey.pem
+ 
+ # If key file is password protected, give the password here. Alternatively
+ # give it when starting dovecot with -p parameter. Since this file is often
+diff -uprN /etc/dovecot.orig/dovecot.conf /etc/dovecot/dovecot.conf
+--- /etc/dovecot.orig/dovecot.conf	2024-08-26 15:52:27.000000000 +0000
++++ /etc/dovecot/dovecot.conf	2025-04-16 03:13:09.328661295 +0000
+@@ -27,7 +27,7 @@
+ # "*" listens in all IPv4 interfaces, "::" listens in all IPv6 interfaces.
+ # If you want to specify non-default ports or anything more complex,
+ # edit conf.d/master.conf.
+-#listen = *, ::
++listen = *
+ 
+ # Base directory where to store runtime data.
+ #base_dir = /var/run/dovecot/
+--- /etc/opendkim.conf.orig	2023-06-16 19:52:26.000000000 +0000
++++ /etc/opendkim.conf	2025-04-16 07:34:01.998740778 +0000
+@@ -11,7 +11,7 @@ SyslogSuccess		yes
+ # oversigned, because it is often the identity key used by reputation systems
+ # and thus somewhat security sensitive.
+ Canonicalization	relaxed/simple
+-#Mode			sv
++Mode			sv
+ #SubDomains		no
+ OversignHeaders		From
+ 
+@@ -19,9 +19,9 @@ OversignHeaders		From
+ # for domain "example.com" with selector "2020" (2020._domainkey.example.com),
+ # using the private key stored in /etc/dkimkeys/example.private. More granular
+ # setup options can be found in /usr/share/doc/opendkim/README.opendkim.
+-#Domain			example.com
+-#Selector		2020
+-#KeyFile		/etc/dkimkeys/example.private
++Domain			8ppoi.com
++Selector		default
++KeyFile			/etc/dkimkeys/default.private
+ 
+ # In Debian, opendkim runs as user "opendkim". A umask of 007 is required when
+ # using a local socket with MTAs that access the socket as a non-privileged
+@@ -34,8 +34,8 @@ UMask			007
+ # it must be ensured that the socket is accessible. In Debian, Postfix runs in
+ # a chroot in /var/spool/postfix, therefore a Unix socket would have to be
+ # configured as shown on the last line below.
+-Socket			local:/run/opendkim/opendkim.sock
+-#Socket			inet:8891@localhost
++#Socket			local:/run/opendkim/opendkim.sock
++Socket			inet:8891@localhost
+ #Socket			inet:8891
+ #Socket			local:/var/spool/postfix/opendkim/opendkim.sock
+ 

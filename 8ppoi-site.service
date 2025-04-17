@@ -1,0 +1,12 @@
+[Unit]
+Description=8ppoi site
+After=network.target
+
+[Service]
+User=8ppoi
+ExecStart=/home/8ppoi/.deno/bin/deno run -A --watch /home/8ppoi/8ppoi-site/main.ts
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
