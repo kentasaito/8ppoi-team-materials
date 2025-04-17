@@ -1,0 +1,28 @@
+CREATE TABLE activateRequests (
+  token TEXT NOT PRIMARY KEY,
+  memberId TEXT NULL UNIQUE,
+  email TEXT NOT NULL UNIQUE,
+  createdAt INTEGER unixepoch()
+);
+
+export interface ActivateRequest {
+  memberId: string;
+  email: string;
+  createdAt: number;
+}
+
+
+
+
+
+CREATE TABLE members (
+  memberId TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  createdAt INTEGER unixepoch()
+);
+
+export interface Member {
+  memberId: string;
+  email: string;
+  createdAt: number; // Unix epoch time (integer)
+}

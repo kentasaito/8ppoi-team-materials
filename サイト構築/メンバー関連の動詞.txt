@@ -1,0 +1,19 @@
+/join -> /activate URLパス
+activateRequests テーブル名
+ActivateRequest インターフェース名
+activateRequest インスタンス名
+
+/login -> /authenticate URLパス
+authenticateRequests テーブル名
+AuthenticateRequest インターフェース名
+authenticateRequest インスタンス名
+
+/reset -> /recover URLパス
+recoverRequests テーブル名
+RecoverRequest インターフェース名
+recoverRequest インスタンス名
+
+/leave -> /unsubscribe URLパス
+unsubscribeRequests テーブル名
+UnsubscribeRequest インターフェース名
+unsubscribeRequest インスタンス名
