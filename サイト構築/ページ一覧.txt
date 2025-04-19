@@ -1,0 +1,25 @@
+/auth - 認証関連
+  GET /join
+  GET /register
+  GET /login
+  GET /authenticate
+  GET /logout
+  GET /leave
+  GET /unregister
+  
+/authAdmin - 管理者認証関連
+  GET /login
+  GET /authenticate
+  GET /logout
+
+/admin - 管理画面(運営者用)
+  GET /registerRequests
+  GET /authenticateRequests
+  GET /unregisterRequests
+  GET /authenticatedMembers
+  GET /members
+  GET /authenticateAdminRequests
+  GET /authenticatedAdmins
+  GET /admins
+
+/dashboard - ダッシュボード(メンバー用)

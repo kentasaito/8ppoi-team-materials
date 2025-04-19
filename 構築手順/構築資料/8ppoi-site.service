@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 User=8ppoi
-ExecStart=/home/8ppoi/.deno/bin/deno run -A --watch /home/8ppoi/8ppoi-site/main.ts
+ExecStart=/home/8ppoi/.deno/bin/deno run -A --env-file=/home/8ppoi/.env --watch /home/8ppoi/8ppoi-site/main.ts
 Restart=always
 RestartSec=1
 

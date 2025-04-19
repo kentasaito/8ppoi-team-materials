@@ -1,0 +1,26 @@
+/api
+  /auth - 認証関連
+    POST /join
+    POST /register
+    POST /login
+    POST /authenticate
+    POST /logout
+    POST /leave
+    POST /unregister
+    
+/authAdmin - 管理者認証関連
+  POST /login
+  POST /authenticate
+  POST /logout
+
+  /admin - 管理画面(運営者用)
+    GET /registerRequests
+    GET /authenticateRequests
+    GET /unregisterRequests
+    GET /authenticatedMembers
+    GET /members
+    GET /authenticateAdminRequests
+    GET /authenticatedAdmins
+    GET /admins
+
+  /dashboard - ダッシュボード(メンバー用)
